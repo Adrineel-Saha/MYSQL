@@ -1,0 +1,33 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    # Single shared MySQL server for the whole system (mirrors the shared Kafka
+    # broker). Each service still owns its OWN logical database on this server:
+    #   UserService    -> UserServiceDatabase
+    #   AuthService    -> AuthServiceDatabase
+    #   OrderService   -> OrderServiceDatabase
+    #   ProductService -> ProductServiceDatabase
+    # These databases are created on first startup by the init script mounted
+    # below. All services reach this server at mysql:3306 over microservices-net.
+    # Bring this up FIRST, before any service compose.
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+      - mysql-data:/var/lib/mysql
+      # Runs *.sql here once, only when the data volume is empty (first init).
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - microservices-net
+
+volumes:
+  mysql-data:
+
+networks:
+  microservices-net:
+    external: true
